@@ -6,7 +6,7 @@
 
 {
     "name": "ITA - Fattura elettronica - Emissione",
-    "version": "14.0.2.1.1",
+    "version": "14.0.2.4.2",
     "development_status": "Beta",
     "category": "Localization/Italy",
     "summary": "Emissione fatture elettroniche",
@@ -36,7 +36,6 @@
         "python": [
             "unidecode",
             "elementpath",
-            "xmlschema",
         ],
     },
 }
