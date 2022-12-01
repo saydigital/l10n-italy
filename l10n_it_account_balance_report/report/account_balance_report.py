@@ -151,6 +151,42 @@ class ReportAccountBalanceReport(models.TransientModel):
         act["context"] = ctx
         return act
 
+    def clear_data(self, tb_data):
+        for element in tb_data["trial_balance"]:
+            if element["credit"] < 0:
+                element["credit"] = -element["credit"]
+
+            if element["debit"] < 0:
+                element["debit"] = -element["debit"]
+
+            if element["balance"] < 0:
+                element["balance"] = -element["balance"]
+
+            if element["ending_balance"] < 0:
+                element["ending_balance"] = -element["ending_balance"]
+
+        if not tb_data["docs"].show_partner_details:
+            for element in tb_data["accounts_data"]:
+                if tb_data["accounts_data"][element]["credit"] < 0:
+                    tb_data["accounts_data"][element]["credit"] = -tb_data[
+                        "accounts_data"
+                    ][element]["credit"]
+
+                if tb_data["accounts_data"][element]["debit"] < 0:
+                    tb_data["accounts_data"][element]["debit"] = -tb_data[
+                        "accounts_data"
+                    ][element]["debit"]
+
+                if tb_data["accounts_data"][element]["balance"] < 0:
+                    tb_data["accounts_data"][element]["balance"] = -tb_data[
+                        "accounts_data"
+                    ][element]["balance"]
+
+                if tb_data["accounts_data"][element]["ending_balance"] < 0:
+                    tb_data["accounts_data"][element]["ending_balance"] = -tb_data[
+                        "accounts_data"
+                    ][element]["ending_balance"]
+
     def compute_data_for_report(self, tb_data):
         """
         Sets data for report.
@@ -158,6 +194,9 @@ class ReportAccountBalanceReport(models.TransientModel):
         sections should have, the report title, amounts and balances
         """
         self.ensure_one()
+
+        self.clear_data(tb_data)
+
         rep_type = self.account_balance_report_type
 
         # Trial balance already has every data we may need
@@ -534,12 +573,20 @@ class ReportAccountBalanceReport(models.TransientModel):
         if section == r_sec:
             credit_section.append(section_vals)
             if line.get("type", "") != self.GROUP_TYPE:
-                total_credit += line.get("ending_balance")
+                total_credit += (
+                    line.get("ending_balance")
+                    if "ending_balance" in line
+                    else line.get("balance")
+                )
 
         elif section == l_sec:
             debit_section.append(section_vals)
             if line.get("type", "") != self.GROUP_TYPE:
-                total_debit += line.get("ending_balance")
+                total_debit += (
+                    line.get("ending_balance")
+                    if "ending_balance" in line
+                    else line.get("balance")
+                )
 
         return float_round(total_debit, digits), float_round(total_credit, digits)
 
