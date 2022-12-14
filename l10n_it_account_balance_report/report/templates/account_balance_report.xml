@@ -276,11 +276,22 @@
                         class="o_account_financial_reports_web_action_monetary_multi"
                         t-att-style="style"
                     >
-                        <t
-                            t-att-style="style"
-                            t-raw="line.ending_balance"
-                            t-options="{'widget': 'monetary', 'display_currency': res_company.currency_id}"
-                        /></a>
+                        <t t-if="o.show_partner_details">
+                            <t
+                                t-att-style="style"
+                                t-raw="line.balance"
+                                t-options="{'widget': 'monetary', 'display_currency': res_company.currency_id}"
+                            />
+                        </t>
+                        <t t-else="">
+                            <t
+                                t-att-style="style"
+                                t-raw="line.ending_balance"
+                                t-options="{'widget': 'monetary', 'display_currency': res_company.currency_id}"
+                            />
+                        </t>
+
+                    </a>
                     </span>
                     <t t-if="o.foreign_currency">
                         <t t-if="line.currency_id">
