@@ -69,8 +69,8 @@
                                     <t
                                         t-call="l10n_it_account_balance_report.account_balance_report_lines"
                                     />
-                                    </t>
                                 </t>
+                            </t>
                             <t t-if="not limit_hierarchy_level">
                                 <t
                                     t-call="l10n_it_account_balance_report.account_balance_report_lines"
@@ -101,16 +101,16 @@
                             <t t-set="style" t-value="'font-size: 14px;'" />
                         </t>
                         <t t-if="o.show_hierarchy">
+                            <t
+                                t-set="style"
+                                t-value="'font-size: 14px; margin-right: 4px; margin-left: ' + str((line.level + 1) * 4) + 'px;'"
+                            />
                             <t t-if="not line.account_id and line.group_id">
                                 <t
                                     t-set="style"
                                     t-value="style + 'font-weight: bold; color: blue;'"
                                 />
                             </t>
-                            <t
-                                t-set="style"
-                                t-value="style + ' margin-right: 4px; margin-left: ' + str((line.level + 1) * 4) + 'px;'"
-                            />
                             <t t-if="limit_hierarchy_level">
                                 <t
                                     t-if="o.show_hierarchy_level > line.level and (not o.hide_parent_hierarchy_level or (o.show_hierarchy_level - 1) == line.level)"
