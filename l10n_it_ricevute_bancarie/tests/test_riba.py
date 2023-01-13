@@ -91,6 +91,7 @@ class TestInvoiceDueCost(riba_common.TestRibaCommon):
                             "quantity": 1.0,
                             "price_unit": 450.00,
                             "account_id": self.sale_account.id,
+                            "tax_ids": [[6, 0, []]],
                         },
                     )
                 ],
@@ -108,7 +109,7 @@ class TestInvoiceDueCost(riba_common.TestRibaCommon):
                         "|",
                         ("riba", "=", "True"),
                         ("unsolved_invoice_ids", "!=", False),
-                        ("account_id.internal_type", "=", "receivable"),
+                        ("account_type", "=", "asset_receivable"),
                         ("reconciled", "=", False),
                         ("distinta_line_ids", "=", False),
                         ("move_id", "=", invoice.id),
@@ -123,7 +124,7 @@ class TestInvoiceDueCost(riba_common.TestRibaCommon):
             {"configuration_id": self.riba_config.id}
         )
         action = wizard_riba_issue.with_context(
-            {"active_ids": [riba_move_line_id]}
+            active_ids=[riba_move_line_id]
         ).create_list()
         riba_list_id = action and action["res_id"] or False
         riba_list = self.distinta_model.browse(riba_list_id)
@@ -142,7 +143,9 @@ class TestInvoiceDueCost(riba_common.TestRibaCommon):
             "doc_model": "riba.distinta",
             "docs": self.env["riba.distinta"].browse(riba_list.ids),
         }
-        data = self.env.ref("l10n_it_ricevute_bancarie.distinta_qweb")._render(docargs)
+        data = self.env["ir.qweb"]._render(
+            "l10n_it_ricevute_bancarie.distinta_qweb", docargs
+        )
         if config.get("test_report_directory"):
             open(
                 os.path.join(config["test_report_directory"], "riba-list." + format),
@@ -153,11 +156,9 @@ class TestInvoiceDueCost(riba_common.TestRibaCommon):
         wiz_accreditation = (
             self.env["riba.accreditation"]
             .with_context(
-                {
-                    "active_model": "riba.distinta",
-                    "active_ids": [riba_list_id],
-                    "active_id": riba_list_id,
-                }
+                active_model="riba.distinta",
+                active_ids=[riba_list_id],
+                active_id=riba_list_id,
             )
             .create(
                 {
@@ -231,7 +232,7 @@ class TestInvoiceDueCost(riba_common.TestRibaCommon):
         self.assertEqual(len(to_reconcile), 2)
         to_reconcile.reconcile()
         # refresh otherwise riba_list.payment_ids is not recomputed
-        riba_list.refresh()
+        riba_list.env.invalidate_all()
         self.assertEqual(riba_list.state, "paid")
         self.assertEqual(len(riba_list.payment_ids), 1)
         self.assertEqual(len(riba_list.line_ids), 1)
@@ -265,6 +266,7 @@ class TestInvoiceDueCost(riba_common.TestRibaCommon):
                             "quantity": 1.0,
                             "price_unit": 100.00,
                             "account_id": self.sale_account.id,
+                            "tax_ids": [[6, 0, []]],
                         },
                     )
                 ],
@@ -280,7 +282,7 @@ class TestInvoiceDueCost(riba_common.TestRibaCommon):
             {"configuration_id": self.riba_config.id}
         )
         action = wizard_riba_issue.with_context(
-            {"active_ids": [riba_move_line_id]}
+            active_ids=[riba_move_line_id]
         ).create_list()
         riba_list_id = action and action["res_id"] or False
         riba_list = self.distinta_model.browse(riba_list_id)
@@ -291,11 +293,9 @@ class TestInvoiceDueCost(riba_common.TestRibaCommon):
         wiz_accreditation = (
             self.env["riba.accreditation"]
             .with_context(
-                {
-                    "active_model": "riba.distinta",
-                    "active_ids": [riba_list_id],
-                    "active_id": riba_list_id,
-                }
+                active_model="riba.distinta",
+                active_ids=[riba_list_id],
+                active_id=riba_list_id,
             )
             .create(
                 {
@@ -311,11 +311,9 @@ class TestInvoiceDueCost(riba_common.TestRibaCommon):
         wiz_unsolved = (
             self.env["riba.unsolved"]
             .with_context(
-                {
-                    "active_model": "riba.distinta.line",
-                    "active_ids": [riba_list.line_ids[0].id],
-                    "active_id": riba_list.line_ids[0].id,
-                }
+                active_model="riba.distinta.line",
+                active_ids=[riba_list.line_ids[0].id],
+                active_id=riba_list.line_ids[0].id,
             )
             .create(
                 {
@@ -384,6 +382,7 @@ class TestInvoiceDueCost(riba_common.TestRibaCommon):
                             "quantity": 1.0,
                             "price_unit": 450.00,
                             "account_id": self.sale_account.id,
+                            "tax_ids": [[6, 0, self.tax_22.ids]],
                         },
                     )
                 ],
@@ -411,7 +410,7 @@ class TestInvoiceDueCost(riba_common.TestRibaCommon):
             {"configuration_id": self.riba_config.id}
         )
         action = wizard_riba_issue.with_context(
-            {"active_ids": [riba_move_line_id.id]}
+            active_ids=[riba_move_line_id.id]
         ).create_list()
         riba_list_id = action and action["res_id"] or False
         riba_list = self.distinta_model.browse(riba_list_id)
@@ -419,7 +418,7 @@ class TestInvoiceDueCost(riba_common.TestRibaCommon):
         self.assertEqual(riba_list.line_ids[0].cig, "7987210EG5")
         self.assertEqual(riba_list.line_ids[0].cup, "H71N17000690124")
         wizard_riba_export = self.env["riba.file.export"].create({})
-        wizard_riba_export.with_context({"active_ids": [riba_list.id]}).act_getfile()
+        wizard_riba_export.with_context(active_ids=[riba_list.id]).act_getfile()
         riba_txt = base64.decodebytes(wizard_riba_export.riba_txt)
         self.assertTrue(b"CIG: 7987210EG5 CUP: H71N17000690124" in riba_txt)
 
@@ -448,6 +447,7 @@ class TestInvoiceDueCost(riba_common.TestRibaCommon):
                             "quantity": 1.0,
                             "price_unit": 450.00,
                             "account_id": self.sale_account.id,
+                            "tax_ids": [[6, 0, self.tax_22.ids]],
                         },
                     )
                 ],
@@ -484,6 +484,7 @@ class TestInvoiceDueCost(riba_common.TestRibaCommon):
                             "quantity": 1.0,
                             "price_unit": 450.00,
                             "account_id": self.sale_account.id,
+                            "tax_ids": [[6, 0, self.tax_22.ids]],
                         },
                     )
                 ],
@@ -514,14 +515,14 @@ class TestInvoiceDueCost(riba_common.TestRibaCommon):
             {"configuration_id": self.riba_config.id}
         )
         action = wizard_riba_issue.with_context(
-            {"active_ids": [riba_move_line_id.id, riba_move_line1_id.id]}
+            active_ids=[riba_move_line_id.id, riba_move_line1_id.id]
         ).create_list()
         riba_list_id = action and action["res_id"] or False
         riba_list = self.distinta_model.browse(riba_list_id)
         riba_list.confirm()
         self.assertTrue(len(riba_list.line_ids), 2)
         wizard_riba_export = self.env["riba.file.export"].create({})
-        wizard_riba_export.with_context({"active_ids": [riba_list.id]}).act_getfile()
+        wizard_riba_export.with_context(active_ids=[riba_list.id]).act_getfile()
         riba_txt = base64.decodebytes(wizard_riba_export.riba_txt)
         self.assertTrue(b"CIG: 7987210EG5 CUP: H71N17000690124" in riba_txt)
         self.assertTrue(b"CIG: 7987210EG5 CUP: H71N17000690125" in riba_txt)

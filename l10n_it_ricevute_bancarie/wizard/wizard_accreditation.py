@@ -63,7 +63,7 @@ class RibaAccreditation(models.TransientModel):
     bank_account_id = fields.Many2one(
         "account.account",
         "A/C Bank Account",
-        domain=[("internal_type", "=", "liquidity")],
+        domain=[("account_type", "=", "asset_cash")],
         default=_get_bank_account_id,
     )
     bank_amount = fields.Float("Paid Amount")

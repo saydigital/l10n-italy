@@ -402,11 +402,8 @@ class RibaFileExport(models.TransientModel):
             {"state": "get", "riba_txt": out, "file_name": "%s.txt" % order_obj.name}
         )
 
-        model_data_obj = self.env["ir.model.data"]
-        view_rec = model_data_obj.get_object_reference(
-            "l10n_it_ricevute_bancarie", "wizard_riba_file_export"
-        )
-        view_id = view_rec and view_rec[1] or False
+        view_rec = self.env.ref("l10n_it_ricevute_bancarie.wizard_riba_file_export")
+        view_id = view_rec.id if view_rec else False
 
         return {
             "view_id": [view_id],
@@ -425,4 +422,4 @@ class RibaFileExport(models.TransientModel):
         default="choose",
     )
     riba_txt = fields.Binary("File", readonly=True)
-    file_name = fields.Char("File Name", readonly=True)
+    file_name = fields.Char(readonly=True)

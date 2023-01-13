@@ -1,18 +1,71 @@
+from odoo import fields
 from odoo.tests import common
 
 
 class TestRibaCommon(common.TransactionCase):
     def setUp(self):
         super(TestRibaCommon, self).setUp()
+        tax_model = self.env["account.tax"]
+        self.account_tax = (
+            self.env.ref("l10n_it.2601", raise_if_not_found=False)
+            or self.env.ref("l10n_generic_coa.tax_payable", raise_if_not_found=False)
+            or self.env["account.account"].search(
+                [("account_type", "=", "liability_current")], limit=1
+            )
+        )
+        self.tax_22 = tax_model.create(
+            {
+                "name": "IVA 22 Sale",
+                "description": "22",
+                "amount": 22.00,
+                "type_tax_use": "sale",
+                "invoice_repartition_line_ids": [
+                    (5, 0, 0),
+                    (
+                        0,
+                        0,
+                        {
+                            "factor_percent": 100,
+                            "repartition_type": "base",
+                        },
+                    ),
+                    (
+                        0,
+                        0,
+                        {
+                            "factor_percent": 100,
+                            "repartition_type": "tax",
+                            "account_id": self.account_tax.id,
+                        },
+                    ),
+                ],
+                "refund_repartition_line_ids": [
+                    (5, 0, 0),
+                    (
+                        0,
+                        0,
+                        {
+                            "factor_percent": 100,
+                            "repartition_type": "base",
+                        },
+                    ),
+                    (
+                        0,
+                        0,
+                        {
+                            "factor_percent": 100,
+                            "repartition_type": "tax",
+                            "account_id": self.account_tax.id,
+                        },
+                    ),
+                ],
+            }
+        )
         self.service_due_cost = self._create_service_due_cost()
         self.account_model = self.env["account.account"]
         self.move_line_model = self.env["account.move.line"]
         self.move_model = self.env["account.move"]
         self.distinta_model = self.env["riba.distinta"]
-        self.account_user_type = self.env.ref("account.data_account_type_receivable")
-        self.account_asset_user_type = self.env.ref(
-            "account.data_account_type_fixed_assets"
-        )
         self.partner = self.env.ref("base.res_partner_3")
         self.partner.vat = "IT01234567890"
         self.product1 = self.env.ref("product.product_product_5")
@@ -26,18 +79,18 @@ class TestRibaCommon(common.TransactionCase):
         self.payment_term2 = self._create_pterm2()
         self.account_rec1_id = self.account_model.create(
             dict(
-                code="cust_acc",
+                code="custacc",
                 name="customer account",
-                user_type_id=self.account_user_type.id,
+                account_type="asset_receivable",
                 reconcile=True,
             )
         )
         self.sale_account = self.env["account.account"].search(
             [
                 (
-                    "user_type_id",
+                    "account_type",
                     "=",
-                    self.env.ref("account.data_account_type_revenue").id,
+                    "income_other",
                 )
             ],
             limit=1,
@@ -45,9 +98,9 @@ class TestRibaCommon(common.TransactionCase):
         self.expenses_account = self.env["account.account"].search(
             [
                 (
-                    "user_type_id",
+                    "account_type",
                     "=",
-                    self.env.ref("account.data_account_type_expenses").id,
+                    "expense",
                 )
             ],
             limit=1,
@@ -55,9 +108,9 @@ class TestRibaCommon(common.TransactionCase):
         self.bank_account = self.env["account.account"].search(
             [
                 (
-                    "user_type_id",
+                    "account_type",
                     "=",
-                    self.env.ref("account.data_account_type_liquidity").id,
+                    "asset_cash",
                 )
             ],
             limit=1,
@@ -69,22 +122,22 @@ class TestRibaCommon(common.TransactionCase):
                 "code": "STC",
                 "name": "STC Bills (test)",
                 "reconcile": True,
-                "user_type_id": self.account_user_type.id,
+                "account_type": "asset_receivable",
             }
         )
         self.riba_account = self.env["account.account"].create(
             {
-                "code": "C/O",
+                "code": "CO",
                 "name": "C/O Account (test)",
-                "user_type_id": self.account_asset_user_type.id,
+                "account_type": "asset_fixed",
             }
         )
         self.unsolved_account = self.env["account.account"].create(
             {
-                "code": "Past Due",
+                "code": "PastDue",
                 "name": "Past Due Bills Account (test)",
                 "reconcile": True,
-                "user_type_id": self.account_user_type.id,
+                "account_type": "asset_receivable",
             }
         )
         self.company_bank = self.env.ref("l10n_it_ricevute_bancarie.company_bank")
@@ -99,6 +152,7 @@ class TestRibaCommon(common.TransactionCase):
             {
                 "name": "Collection Fees",
                 "type": "service",
+                "taxes_id": [[6, 0, self.tax_22.ids]],
                 "property_account_income_id": self._account_expense(),
             }
         )
@@ -106,9 +160,9 @@ class TestRibaCommon(common.TransactionCase):
     def _account_expense(self):
         return self.env["account.account"].create(
             {
-                "code": "demo_due_cost",
+                "code": "demoduecost",
                 "name": "cashing fees",
-                "user_type_id": self.env.ref("account.data_account_type_expenses").id,
+                "account_type": "expense",
             }
         )
 
@@ -123,7 +177,7 @@ class TestRibaCommon(common.TransactionCase):
         )
         return self.env["account.move"].create(
             {
-                "invoice_date": recent_date,
+                "invoice_date": recent_date or fields.Date.today(),
                 "move_type": "out_invoice",
                 "journal_id": self.sale_journal.id,
                 "partner_id": self.partner.id,
@@ -139,6 +193,7 @@ class TestRibaCommon(common.TransactionCase):
                             "quantity": 1.0,
                             "price_unit": 100.00,
                             "account_id": self.sale_account.id,
+                            "tax_ids": [[6, 0, self.tax_22.ids]],
                         },
                     )
                 ],
@@ -157,8 +212,8 @@ class TestRibaCommon(common.TransactionCase):
                         0,
                         {
                             "value": "percent",
+                            "months": 0,
                             "days": 30,
-                            "option": "day_after_invoice_date",
                             "value_amount": 0.50,
                         },
                     ),
@@ -167,8 +222,8 @@ class TestRibaCommon(common.TransactionCase):
                         0,
                         {
                             "value": "balance",
+                            "months": 0,
                             "days": 60,
-                            "option": "day_after_invoice_date",
                         },
                     ),
                 ],
@@ -187,7 +242,7 @@ class TestRibaCommon(common.TransactionCase):
                         0,
                         {
                             "value": "balance",
-                            "option": "day_following_month",
+                            "months": 1,
                             "days": 1,
                         },
                     )

@@ -53,12 +53,12 @@ class RibaConfiguration(models.Model):
         "account.account",
         "C/O Account",
         help="Account used when C/O amount is credited by the bank.",
-        domain=[("internal_type", "!=", "liquidity")],
+        domain=[("account_type", "!=", "liability_credit_card")],
     )
     bank_account_id = fields.Many2one(
         "account.account",
         "A/C Bank Account",
-        domain=[("internal_type", "=", "liquidity")],
+        domain=[("account_type", "=", "asset_cash")],
     )
     bank_expense_account_id = fields.Many2one("account.account", "Bank Fees Account")
     unsolved_journal_id = fields.Many2one(
@@ -70,7 +70,7 @@ class RibaConfiguration(models.Model):
     overdue_effects_account_id = fields.Many2one(
         "account.account",
         "Past Due Bills Account",
-        domain=[("internal_type", "=", "receivable")],
+        domain=[("account_type", "=", "asset_receivable")],
     )
     protest_charge_account_id = fields.Many2one(
         "account.account", "Protest Fee Account"
