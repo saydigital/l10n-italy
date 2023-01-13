@@ -66,7 +66,7 @@ class RibaUnsolved(models.TransientModel):
     effects_account_id = fields.Many2one(
         "account.account",
         "Bills Account",
-        domain=[("internal_type", "=", "receivable")],
+        domain=[("account_type", "=", "asset_receivable")],
         default=_get_effects_account_id,
     )
     effects_amount = fields.Float("Bills Amount", default=_get_effects_amount)
@@ -77,7 +77,7 @@ class RibaUnsolved(models.TransientModel):
     overdue_effects_account_id = fields.Many2one(
         "account.account",
         "Past Due Bills Account",
-        domain=[("internal_type", "=", "receivable")],
+        domain=[("account_type", "=", "asset_receivable")],
         default=_get_overdue_effects_account_id,
     )
     overdue_effects_amount = fields.Float(
@@ -86,7 +86,7 @@ class RibaUnsolved(models.TransientModel):
     bank_account_id = fields.Many2one(
         "account.account",
         "A/C Bank Account",
-        domain=[("internal_type", "=", "liquidity")],
+        domain=[("account_type", "=", "asset_cash")],
         default=_get_bank_account_id,
     )
     bank_amount = fields.Float("Withdrawn Amount")
@@ -123,8 +123,11 @@ class RibaUnsolved(models.TransientModel):
         ):
             raise UserError(_("Every account is mandatory."))
         move_vals = {
-            "ref": _("Past Due C/O %s - Line %s")
-            % (distinta_line.distinta_id.name, distinta_line.sequence),
+            "ref": _("Past Due C/O %(name)s - Line %(sequence)s")
+            % {
+                "name": distinta_line.distinta_id.name,
+                "sequence": distinta_line.sequence,
+            },
             "journal_id": wizard.unsolved_journal_id.id,
             "date": distinta_line.due_date,
             "line_ids": [
@@ -221,7 +224,7 @@ class RibaUnsolved(models.TransientModel):
             }
         )
         to_be_reconciled_lines = move_line_model.with_context(
-            {"unsolved_reconciliation": True}
+            unsolved_reconciliation=True
         ).browse(to_be_reconciled)
         to_be_reconciled_lines.reconcile()
         distinta_line.distinta_id.state = "unsolved"

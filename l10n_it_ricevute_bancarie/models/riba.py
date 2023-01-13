@@ -64,7 +64,6 @@ class RibaList(models.Model):
             ("unsolved", "Past Due"),
             ("cancel", "Canceled"),
         ],
-        "State",
         readonly=True,
         default="draft",
     )
@@ -116,7 +115,6 @@ class RibaList(models.Model):
     )
     type = fields.Selection(string="Type", related="config_id.type", readonly=True)
     registration_date = fields.Date(
-        "Registration Date",
         states={
             "draft": [("readonly", False)],
             "cancel": [("readonly", False)],
@@ -142,12 +140,12 @@ class RibaList(models.Model):
             if riba_list.state not in ("draft", "cancel"):
                 raise UserError(
                     _(
-                        "Slip %s is in state '%s'. You can only delete documents"
+                        "Slip %(name)s is in state '%(state)s'. You can only delete documents"
                         " in state 'Draft' or 'Canceled'."
                     )
-                    % (riba_list.name, riba_list.state)
+                    % {"name": riba_list.name, "state": riba_list.state}
                 )
-        super(RibaList, self).unlink()
+        return super(RibaList, self).unlink()
 
     def confirm(self):
         for distinta in self:
@@ -251,13 +249,9 @@ class RibaListLine(models.Model):
                         ),
                     )
 
-    amount = fields.Float(compute="_compute_line_values", string="Amount")
-    invoice_date = fields.Char(
-        compute="_compute_line_values", string="Invoice Date", size=256
-    )
-    invoice_number = fields.Char(
-        compute="_compute_line_values", string="Invoice Number", size=256
-    )
+    amount = fields.Float(compute="_compute_line_values")
+    invoice_date = fields.Char(compute="_compute_line_values", size=256)
+    invoice_number = fields.Char(compute="_compute_line_values", size=256)
     cig = fields.Char(compute="_compute_cig_cup_values", string="CIG", size=256)
     cup = fields.Char(compute="_compute_cig_cup_values", string="CUP", size=256)
 
@@ -334,7 +328,7 @@ class RibaListLine(models.Model):
         "riba.distinta", string="Slip", required=True, ondelete="cascade"
     )
     partner_id = fields.Many2one("res.partner", string="Customer", readonly=True)
-    due_date = fields.Date("Due Date", readonly=True)
+    due_date = fields.Date(readonly=True)
     state = fields.Selection(
         [
             ("draft", "Draft"),
@@ -344,7 +338,6 @@ class RibaListLine(models.Model):
             ("unsolved", "Past Due"),
             ("cancel", "Canceled"),
         ],
-        "State",
         readonly=True,
         tracking=True,
     )
@@ -404,7 +397,7 @@ class RibaListLine(models.Model):
                         [riba_move_line_name, riba_move_line.move_line_id.name]
                     ).lstrip()
                 move_line = move_line_model.with_context(
-                    {"check_move_validity": False}
+                    check_move_validity=False
                 ).create(
                     {
                         "name": (
@@ -421,7 +414,7 @@ class RibaListLine(models.Model):
                 )
                 to_be_reconciled |= move_line
                 to_be_reconciled |= riba_move_line.move_line_id
-            move_line_model.with_context({"check_move_validity": False}).create(
+            move_line_model.with_context(check_move_validity=False).create(
                 {
                     "name": "C/O %s-%s Ref. %s - %s"
                     % (
@@ -489,7 +482,7 @@ class RibaListLine(models.Model):
             )
 
             move_line_credit = move_line_model.with_context(
-                {"check_move_validity": False}
+                check_move_validity=False
             ).create(
                 {
                     "name": move_ref,
@@ -502,7 +495,7 @@ class RibaListLine(models.Model):
             )
 
             accr_acc = riba_line.distinta_id.config_id.accreditation_account_id
-            move_line_model.with_context({"check_move_validity": False}).create(
+            move_line_model.with_context(check_move_validity=False).create(
                 {
                     "name": move_ref,
                     "account_id": accr_acc.id,
@@ -525,7 +518,7 @@ class RibaListMoveLine(models.Model):
     _description = "C/O Details"
     _rec_name = "amount"
 
-    amount = fields.Float("Amount", digits="Account")
+    amount = fields.Float(digits="Account")
     move_line_id = fields.Many2one("account.move.line", string="Credit Move Line")
     riba_line_id = fields.Many2one(
         "riba.distinta.line", string="Slip Line", ondelete="cascade"

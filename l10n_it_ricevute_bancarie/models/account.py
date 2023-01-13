@@ -76,7 +76,7 @@ class AccountMove(models.Model):
         "Is a past due invoice", compute="_compute_is_unsolved", store=True
     )
     is_riba_payment = fields.Boolean(
-        "Is C/O Payment", related="invoice_payment_term_id.riba", default=False
+        "Is C/O Payment", related="invoice_payment_term_id.riba"
     )
 
     riba_partner_bank_id = fields.Many2one(
@@ -88,7 +88,7 @@ class AccountMove(models.Model):
         states={"draft": [("readonly", False)]},
     )
 
-    @api.model
+    @api.model_create_multi
     def create(self, vals):
         invoice = super().create(vals)
         if not invoice.riba_partner_bank_id:
@@ -117,7 +117,7 @@ class AccountMove(models.Model):
         :return: True if month of invoice_date_due is in a list of all_date_due
         """
         for d in all_date_due:
-            if invoice_date_due[:7] == str(d.strftime("%Y-%m")):
+            if invoice_date_due.month == d.month and invoice_date_due.year == d.year:
                 return True
         return False
 
@@ -152,9 +152,19 @@ class AccountMove(models.Model):
             pterm = self.env["account.payment.term"].browse(
                 self.invoice_payment_term_id.id
             )
-            pterm_list = pterm.compute(value=1, date_ref=self.invoice_date)
+            pterm_list = pterm._compute_terms(
+                date_ref=self.invoice_date,
+                currency=self.currency_id,
+                company=self.company_id,
+                tax_amount=1,
+                tax_amount_currency=1,
+                untaxed_amount=0,
+                untaxed_amount_currency=0,
+                sign=1,
+            )
+
             for pay_date in pterm_list:
-                if not self.month_check(pay_date[0], previous_date_due):
+                if not self.month_check(pay_date["date"], previous_date_due):
                     # ---- Get Line values for service product
                     service_prod = invoice.company_id.due_cost_service_id
                     account = service_prod.product_tmpl_id.get_product_accounts(
@@ -168,11 +178,10 @@ class AccountMove(models.Model):
                             invoice.invoice_payment_term_id.riba_payment_cost
                         ),
                         "due_cost_line": True,
-                        "exclude_from_invoice_tab": False,
                         "name": _("{line_name} for {month}-{year}").format(
                             line_name=service_prod.name,
-                            month=pay_date[0][5:7],
-                            year=pay_date[0][:4],
+                            month=pay_date["date"].month,
+                            year=pay_date["date"].year,
                         ),
                         "account_id": account.id,
                         "sequence": 9999,
@@ -183,20 +192,25 @@ class AccountMove(models.Model):
                         line_vals.update({"tax_ids": [(4, tax.id)]})
                     invoice.write({"invoice_line_ids": [(0, 0, line_vals)]})
                     # ---- recompute invoice taxes
-                    invoice._recompute_tax_lines()
+                    invoice._sync_dynamic_lines(
+                        container={"records": invoice, "self": invoice}
+                    )
         return super().action_post()
 
     def button_draft(self):
         # ---- Delete Collection Fees Line of invoice when set Back to Draft
         # ---- line was added on new validate
-        super(AccountMove, self).button_draft()
+        res = super(AccountMove, self).button_draft()
         for invoice in self:
             due_cost_line_ids = invoice.get_due_cost_line_ids()
             if due_cost_line_ids:
                 invoice.write(
                     {"invoice_line_ids": [(2, id, 0) for id in due_cost_line_ids]}
                 )
-                invoice._recompute_tax_lines()
+                invoice._sync_dynamic_lines(
+                    container={"records": invoice, "self": invoice}
+                )
+        return res
 
     def button_cancel(self):
         for invoice in self:
@@ -219,7 +233,7 @@ class AccountMove(models.Model):
                             riba=riba_line_ids.riba_line_id.distinta_id.name
                         )
                     )
-        super(AccountMove, self).button_cancel()
+        return super(AccountMove, self).button_cancel()
 
     def copy(self, default=None):
         self.ensure_one()
@@ -231,7 +245,9 @@ class AccountMove(models.Model):
                 invoice.write(
                     {"invoice_line_ids": [(2, id, 0) for id in due_cost_line_ids]}
                 )
-                invoice._recompute_tax_lines()
+                invoice._sync_dynamic_lines(
+                    container={"records": invoice, "self": invoice}
+                )
         return invoice
 
     def get_due_cost_line_ids(self):

@@ -35,7 +35,7 @@ class AccountBankStatementLine(models.Model):
         ctx["bank_statement_line"] = self
         generic_domain = (
             self.env["account.move.line"]
-            .with_context(ctx)
+            .with_context(**ctx)
             .domain_move_lines_for_reconciliation(str=str)
         )
 
