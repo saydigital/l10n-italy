@@ -8,13 +8,14 @@ from odoo.addons.l10n_it_fatturapa_in.tests.fatturapa_common import FatturapaCom
 
 @tagged("post_install", "-at_install")
 class TestBillNotification(FatturapaCommon):
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         super().setUp()
-        self.notified_user = new_test_user(
-            self.env,
+        cls.notified_user = new_test_user(
+            cls.env,
             login="Notify E-bill",
         )
-        self.sdicoop_channel = self.env.ref(
+        cls.sdicoop_channel = cls.env.ref(
             "l10n_it_fatturapa_sdicoop.sdi_channel_sdicoop",
         )
 
